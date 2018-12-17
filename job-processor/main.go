@@ -35,6 +35,16 @@ var (
 		},
 		[]string{"type"},
 	)
+
+	processingTimeVec = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: "worker",
+			Subsystem: "jobs",
+			Name:      "process_time_seconds",
+			Help:      "Amount of time spent processing jobs",
+		},
+		[]string{"worker_id", "type"},
+	)
 )
 
 func init() {
@@ -58,6 +68,7 @@ func main() {
 	prometheus.MustRegister(
 		totalCounterVec,
 		inflightCounterVec,
+		processingTimeVec,
 	)
 
 	// create a channel with a 10,000 Job buffer
@@ -134,6 +145,8 @@ func startWorker(workerID int, jobs <-chan *Job) {
 			totalCounterVec.WithLabelValues(strconv.FormatInt(int64(workerID), 10), job.Type).Inc()
 			// decrement the inflight tracker
 			inflightCounterVec.WithLabelValues(job.Type).Dec()
+
+			processingTimeVec.WithLabelValues(strconv.FormatInt(int64(workerID), 10), job.Type).Observe(time.Now().Sub(startTime).Seconds())
 		}
 	}
 }
