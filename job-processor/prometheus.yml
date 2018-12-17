@@ -1,0 +1,9 @@
+# A scrape configuration containing exactly one endpoint to scrape:
+scrape_configs:
+  # give the job a name
+  - job_name: 'demo'
+    # scrape the service every second
+    scrape_interval: 1s
+    # setup the static configs
+    static_configs:
+      - targets: ['docker.for.mac.localhost:9009']
