@@ -4,8 +4,11 @@ import (
 	"flag"
 	"log"
 	"math/rand"
+	"net/http"
 	"sync"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 var (
@@ -36,7 +39,13 @@ func main() {
 	// start the job processor
 	go startJobProcessor(jobsChannel)
 
-	createJobs(jobsChannel)
+	go createJobs(jobsChannel)
+
+	handler := http.NewServeMux()
+	handler.Handle("/metrics", prometheus.Handler())
+
+	log.Println("[INFO] starting HTTP server on port :9009")
+	log.Fatal(http.ListenAndServe(":9009", handler))
 }
 
 type Job struct {
