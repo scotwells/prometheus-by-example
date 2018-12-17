@@ -4,6 +4,8 @@ services:
     image: grafana/grafana:latest
     ports:
     - 3000:3000
+    volumes:
+    - ./.docker/grafana:/var/lib/grafana
   prometheus:
     image: prom/prometheus:latest
     ports:
