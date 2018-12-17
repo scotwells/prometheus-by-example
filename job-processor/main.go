@@ -5,6 +5,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -14,6 +15,16 @@ import (
 var (
 	types   = []string{"emai", "deactivation", "activation", "transaction", "customer_renew", "order_processed"}
 	workers = 0
+
+	totalCounterVec = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "worker",
+			Subsystem: "jobs",
+			Name:      "processed_total",
+			Help:      "Total number of jobs processed by the workers",
+		},
+		[]string{"worker_id", "type"},
+	)
 )
 
 func init() {
@@ -32,6 +43,11 @@ func main() {
 	//////////
 	// Demo of Worker Processing
 	//////////
+
+	// register with the prometheus collector
+	prometheus.MustRegister(
+		totalCounterVec,
+	)
 
 	// create a channel with a 10,000 Job buffer
 	jobsChannel := make(chan *Job, 10000)
@@ -97,9 +113,12 @@ func startWorker(workerID int, jobs <-chan *Job) {
 		// read from the job channel
 		case job := <-jobs:
 			startTime := time.Now()
+
 			// fake processing the request
 			time.Sleep(job.Sleep)
 			log.Printf("[%d][%s] Processed job in %0.3f seconds", workerID, job.Type, time.Now().Sub(startTime).Seconds())
+			// track the total number of jobs processed by the worker
+			totalCounterVec.WithLabelValues(strconv.FormatInt(int64(workerID), 10), job.Type).Inc()
 		}
 	}
 }
