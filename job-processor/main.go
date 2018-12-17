@@ -25,6 +25,16 @@ var (
 		},
 		[]string{"worker_id", "type"},
 	)
+
+	inflightCounterVec = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "worker",
+			Subsystem: "jobs",
+			Name:      "inflight",
+			Help:      "Number of jobs inflight",
+		},
+		[]string{"type"},
+	)
 )
 
 func init() {
@@ -47,6 +57,7 @@ func main() {
 	// register with the prometheus collector
 	prometheus.MustRegister(
 		totalCounterVec,
+		inflightCounterVec,
 	)
 
 	// create a channel with a 10,000 Job buffer
@@ -99,6 +110,8 @@ func createJobs(jobs chan<- *Job) {
 	for {
 		// create a random job
 		job := makeJob()
+		// track the job in the inflight tracker
+		inflightCounterVec.WithLabelValues(job.Type).Inc()
 		// send the job down the channel
 		jobs <- job
 		// don't pile up too quickly
@@ -119,6 +132,8 @@ func startWorker(workerID int, jobs <-chan *Job) {
 			log.Printf("[%d][%s] Processed job in %0.3f seconds", workerID, job.Type, time.Now().Sub(startTime).Seconds())
 			// track the total number of jobs processed by the worker
 			totalCounterVec.WithLabelValues(strconv.FormatInt(int64(workerID), 10), job.Type).Inc()
+			// decrement the inflight tracker
+			inflightCounterVec.WithLabelValues(job.Type).Dec()
 		}
 	}
 }
